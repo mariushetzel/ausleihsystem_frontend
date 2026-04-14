@@ -1,0 +1,45 @@
+/* Touchscreen-Optimierungen */
+
+/* Wichtig: Touch-Scrolling für alle scrollbaren Container aktivieren */
+html, body {
+  touch-action: pan-y pan-x;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Alle Divs mit Overflow sollten touch-scrollable sein */
+.overflow-auto,
+.overflow-y-auto,
+.overflow-x-auto,
+.overflow-scroll,
+.overflow-y-scroll,
+.overflow-x-scroll {
+  touch-action: pan-y pan-x;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Für den Haupt-Content-Bereich */
+main {
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Touch-Targets größer machen für bessere Bedienbarkeit */
+button,
+select,
+input:not([type="checkbox"]):not([type="radio"]),
+a {
+  touch-action: manipulation;
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Checkboxen und Radio-Buttons - keine Mindestgröße, damit explizite Klassen greifen */
+input[type="checkbox"],
+input[type="radio"] {
+  touch-action: manipulation;
+}
+
+/* Grid-Items sollten touch-scrollable sein */
+.grid {
+  touch-action: pan-y pan-x;
+}
