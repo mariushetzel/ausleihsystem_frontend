@@ -18,13 +18,14 @@ export interface HistoryEntry {
 
 interface DashboardProps {
   username: string;
+  userRole: string;
   items: Item[];
   historyEntries: HistoryEntry[];
   onUpdateItems: (items: Item[]) => void;
   onBack: () => void;
 }
 
-export function Dashboard({ username, items, historyEntries, onUpdateItems, onBack }: DashboardProps) {
+export function Dashboard({ username, userRole, items, historyEntries, onUpdateItems, onBack }: DashboardProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Item | undefined>(undefined);
   const [selectedItemHistory, setSelectedItemHistory] = useState<{
@@ -819,6 +820,18 @@ export function Dashboard({ username, items, historyEntries, onUpdateItems, onBa
         item={itemInfoDialog.ware}
         isOpen={itemInfoDialog.isOpen}
         onClose={() => setItemInfoDialog({ isOpen: false, ware: null })}
+        onEdit={itemInfoDialog.ware ? () => {
+          const item = items.find(i => i.id === itemInfoDialog.ware!.id);
+          if (item) handleEditItem(item);
+        } : undefined}
+        onShowHistory={itemInfoDialog.ware ? () => {
+          const item = items.find(i => i.id === itemInfoDialog.ware!.id);
+          if (item) handleShowHistory(item);
+        } : undefined}
+        onReportDamage={itemInfoDialog.ware ? () => {
+          const item = items.find(i => i.id === itemInfoDialog.ware!.id);
+          if (item) handleSchadenMelden(item);
+        } : undefined}
       />
     </div>
   );

@@ -4,8 +4,10 @@ import { Scan, Search, ShoppingCart, User, Settings, Package, LogOut, History, U
 import { authApi, ausleihenApi, rfidAntennaApi, kategorienApi, verbleibOrtApi, schadensmeldungApi, kategorieVerbleibMatrixApi, historieApi, type VerbleibOrt, type Ware } from '../api';
 import { Item } from './ItemDialog';
 import { ItemInfoDialog } from './ItemInfoDialog';
+import { ItemHistoryDialog } from './ItemHistoryDialog';
 import { SchadensmeldungDialog } from './SchadensmeldungDialog';
 import { UserHistoryDialog } from './UserHistoryDialog';
+import type { HistoryEntry } from './Dashboard';
 
 interface CartItem {
   item: Item;
@@ -135,6 +137,20 @@ export function BorrowView({
   const [selectedItemForInfo, setSelectedItemForInfo] = useState<Ware | null>(null);
   const [showItemInfoDialog, setShowItemInfoDialog] = useState(false);
   
+  // Item History Dialog
+  const [selectedItemHistory, setSelectedItemHistory] = useState<{
+    itemName: string;
+    itemTagId: string;
+    history: HistoryEntry[];
+    schadensmeldungen: any[];
+  } | null>(null);
+  
+  // Schadensmeldung Dialog
+  const [schadensDialog, setSchadensDialog] = useState<{
+    isOpen: boolean;
+    item: Item | null;
+  }>({ isOpen: false, item: null });
+  
   // User History Dialog
   const [showUserHistory, setShowUserHistory] = useState(false);
   const [userHistory, setUserHistory] = useState<any[]>([]);
@@ -246,6 +262,72 @@ export function BorrowView({
       console.error('Fehler beim Laden der Ware:', err);
       addToast('Fehler beim Laden der Warendetails', 'error');
     }
+  };
+  
+  const handleShowHistory = async (item: Item) => {
+    try {
+      const [apiHistory, schadensmeldungen] = await Promise.all([
+        historieApi.getAll({ ware_id: item.id }),
+        schadensmeldungApi.getByWare(item.id)
+      ]);
+      
+      const mappedHistory = apiHistory.map((h: any) => ({
+        id: String(h.id),
+        borrower: h.borrower || 'Unbekannt',
+        borrowedAt: h.borrowedAt || h.borrowed_at || '',
+        returnedAt: h.returnedAt || h.returned_at || '',
+        plannedReturnDate: h.plannedReturnDate || h.planned_return_date,
+        location: h.location,
+        returnedBy: h.returnedBy,
+      }));
+      
+      const allHistory: HistoryEntry[] = [...mappedHistory];
+      if (item.borrowedBy) {
+        allHistory.unshift({
+          id: `current-${item.id}`,
+          borrower: item.borrowedBy,
+          borrowedAt: item.borrowedAt!,
+          returnedAt: '',
+          plannedReturnDate: item.returnDate,
+          location: item.location,
+        });
+      }
+      
+      setSelectedItemHistory({
+        itemName: item.name,
+        itemTagId: item.tagId,
+        history: allHistory,
+        schadensmeldungen: schadensmeldungen || [],
+      });
+    } catch (err) {
+      console.error('Fehler beim Laden der Historie:', err);
+      const fallbackHistory: HistoryEntry[] = [];
+      if (item.borrowedBy) {
+        fallbackHistory.push({
+          id: `current-${item.id}`,
+          borrower: item.borrowedBy,
+          borrowedAt: item.borrowedAt!,
+          returnedAt: '',
+          plannedReturnDate: item.returnDate,
+          location: item.location,
+        });
+      }
+      setSelectedItemHistory({
+        itemName: item.name,
+        itemTagId: item.tagId,
+        history: fallbackHistory,
+        schadensmeldungen: [],
+      });
+    }
+  };
+  
+  const handleSchadenMelden = (item: Item) => {
+    setSchadensDialog({ isOpen: true, item });
+  };
+  
+  const handleDirectSchadensmeldungSubmit = () => {
+    setSchadensDialog({ isOpen: false, item: null });
+    addToast('Schadensmeldung erfolgreich erstellt', 'success');
   };
 
   // Close menu when clicking outside
@@ -1029,7 +1111,43 @@ export function BorrowView({
           setShowItemInfoDialog(false);
           setSelectedItemForInfo(null);
         }}
+        onShowHistory={selectedItemForInfo ? () => {
+          const item = items.find(i => i.id === selectedItemForInfo.id);
+          if (item) {
+            setShowItemInfoDialog(false);
+            handleShowHistory(item);
+          }
+        } : undefined}
+        onReportDamage={selectedItemForInfo ? () => {
+          const item = items.find(i => i.id === selectedItemForInfo.id);
+          if (item) {
+            setShowItemInfoDialog(false);
+            handleSchadenMelden(item);
+          }
+        } : undefined}
       />
+
+      {/* Item History Dialog */}
+      {selectedItemHistory && (
+        <ItemHistoryDialog
+          itemName={selectedItemHistory.itemName}
+          itemTagId={selectedItemHistory.itemTagId}
+          history={selectedItemHistory.history}
+          schadensmeldungen={selectedItemHistory.schadensmeldungen}
+          onClose={() => setSelectedItemHistory(null)}
+        />
+      )}
+
+      {/* Direct Schadensmeldung Dialog */}
+      {schadensDialog.isOpen && schadensDialog.item && (
+        <SchadensmeldungDialog
+          items={[schadensDialog.item]}
+          isOpen={schadensDialog.isOpen}
+          onClose={() => setSchadensDialog({ isOpen: false, item: null })}
+          onSubmit={handleDirectSchadensmeldungSubmit}
+          mode="mitarbeiter-direct"
+        />
+      )}
 
       {/* Header */}
       <header className="bg-white shadow-sm border-b sticky top-0 z-40">
@@ -1617,7 +1735,7 @@ export function BorrowView({
                               
                               setCartReturnDate(gewaehltesDatum);
                             }}
-                            className={`w-full px-5 py-4 text-2xl border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 h-[64px] ${!selectedVerbleibOrtId ? 'bg-gray-100 cursor-not-allowed' : 'border-gray-300'}`}
+                            className={`w-full px-3 py-2 text-base border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 ${!selectedVerbleibOrtId ? 'bg-gray-100 cursor-not-allowed' : 'border-gray-300'}`}
                             onInvalid={(e) => {
                               e.preventDefault();
                               addToast('Bitte wählen Sie ein Datum innerhalb des erlaubten Zeitraums.', 'error');

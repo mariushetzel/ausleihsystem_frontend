@@ -510,6 +510,7 @@ export default function App() {
       ) : (
         <Dashboard
           username={currentUser}
+          userRole={userRole}
           items={items}
           historyEntries={historyEntries}
           onUpdateItems={handleUpdateItems}

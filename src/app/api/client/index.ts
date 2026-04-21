@@ -166,6 +166,15 @@ export interface Ware {
   erstellt_am?: string;
   letzte_ausleihe?: string; // Datum der letzten Ausleihe (egal ob zurückgegeben oder nicht)
   erlaubte_verbleib_orte?: string[];
+  aktuelle_ausleihe?: {
+    id: string;
+    benutzer_name: string;
+    benutzer_email: string;
+    verbleib_ort: string;
+    geplante_rueckgabe: string | null;
+    ausgeliehen_am: string | null;
+    status: string;
+  } | null;
 }
 
 export interface Ausleihe {
