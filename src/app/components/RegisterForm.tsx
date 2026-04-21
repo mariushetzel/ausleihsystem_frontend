@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { generateUUID } from '../utils/uuid';
 import { UserPlus, Loader2, ArrowLeft, CheckCircle, CreditCard, X } from 'lucide-react';
+import { PasswordInput } from './PasswordInput';
 import { authApi, publicCardReaderApi } from '../api';
 
 interface RegisterFormProps {
@@ -21,101 +22,84 @@ export function RegisterForm({ onBackToLogin, preFilledCardId }: RegisterFormPro
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  
-  // Refs für den Card Reader
-  const pollingRef = useRef<NodeJS.Timeout | null>(null);
-  const cardReaderPort = useRef<string>('/dev/ttyUSB0'); // Standard-Port
+
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const cardReaderPort = useRef<string>('/dev/ttyUSB0');
   const sessionIdRef = useRef<string>(generateUUID());
   const userIdRef = useRef<string>('register_form');
 
-  // Card Reader Port aus localStorage laden (falls vorhanden)
   useEffect(() => {
     const savedPort = localStorage.getItem('cardreader_port');
     if (savedPort) {
       cardReaderPort.current = savedPort;
     }
   }, []);
-  
-  // Pre-filled Card ID übernehmen (wenn von Login weitergeleitet)
+
   useEffect(() => {
     if (preFilledCardId && preFilledCardId.trim() !== '') {
       setRfidKarte(preFilledCardId);
     }
   }, [preFilledCardId]);
 
-  // Card Reader starten
+  useEffect(() => {
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+      publicCardReaderApi.stop(sessionIdRef.current, userIdRef.current).catch(() => {});
+    };
+  }, []);
+
   const startCardReader = async () => {
     setError(null);
     setIsCardReaderActive(true);
-    
+
     try {
-      // Card Reader starten (öffentliche API - kein Token nötig)
       const result = await publicCardReaderApi.start(cardReaderPort.current, 9600, sessionIdRef.current, userIdRef.current);
       if (result.session_id) {
         sessionIdRef.current = result.session_id;
       }
-      
+
       if (!result.success) {
         throw new Error(result.error || 'Konnte Kartenleser nicht starten');
       }
-      
-      // Polling starten
-      pollingRef.current = setInterval(pollCardData, 500);
-      
+
+      pollingRef.current = setInterval(async () => {
+        try {
+          const result = await publicCardReaderApi.getData(sessionIdRef.current, userIdRef.current);
+          if (result.success && result.code && result.code !== 'None' && result.code.trim() !== '') {
+            setRfidKarte(result.code.trim());
+            if (pollingRef.current) {
+              clearInterval(pollingRef.current);
+              pollingRef.current = null;
+            }
+            setIsCardReaderActive(false);
+            publicCardReaderApi.stop(sessionIdRef.current, userIdRef.current).catch(() => {});
+          }
+        } catch {
+          // Ignorieren
+        }
+      }, 500);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Fehler beim Starten des Kartenlesers');
       setIsCardReaderActive(false);
     }
   };
 
-  // Card Reader stoppen
-  const stopCardReader = async () => {
+  const stopCardReader = () => {
     if (pollingRef.current) {
       clearInterval(pollingRef.current);
       pollingRef.current = null;
     }
-    
-    try {
-      await publicCardReaderApi.stop(sessionIdRef.current, userIdRef.current);
-    } catch (e) {
-      // Ignorieren - cleanup
-    }
-    
+    publicCardReaderApi.stop(sessionIdRef.current, userIdRef.current).catch(() => {});
     setIsCardReaderActive(false);
   };
 
-  // Karten-Daten pollen
-  const pollCardData = async () => {
-    try {
-      const result = await publicCardReaderApi.getData(sessionIdRef.current, userIdRef.current);
-      
-      if (result.success && result.code && result.code !== 'None' && result.code.trim() !== '') {
-        // Karte wurde gelesen!
-        setRfidKarte(result.code.trim());
-        stopCardReader();
-      }
-    } catch (err) {
-      // Polling-Fehler ignorieren
-    }
-  };
-
-  // Cleanup beim Unmount
-  useEffect(() => {
-    return () => {
-      if (pollingRef.current) {
-        clearInterval(pollingRef.current);
-      }
-      // Versuchen den Reader zu stoppen
-      publicCardReaderApi.stop(sessionIdRef.current, userIdRef.current).catch(() => {});
-    };
-  }, []);
-
-  // Karte entfernen
   const clearCard = () => {
     setRfidKarte(null);
   };
 
-  // E-Mail Validierung (nur TH-Köln Domains)
   const validateEmail = (email: string): boolean => {
     const allowedDomains = ['@th-koeln.de', '@smail.th-koeln.de'];
     const emailLower = email.toLowerCase().trim();
@@ -126,13 +110,11 @@ export function RegisterForm({ onBackToLogin, preFilledCardId }: RegisterFormPro
     e.preventDefault();
     setError(null);
 
-    // Validierung
     if (!formData.vorname.trim() || !formData.nachname.trim() || !formData.email.trim() || !formData.passwort) {
       setError('Alle Felder müssen ausgefüllt sein');
       return;
     }
 
-    // E-Mail Domain prüfen
     if (!validateEmail(formData.email)) {
       setError('Nur E-Mail-Adressen der TH Köln (@th-koeln.de oder @smail.th-koeln.de) sind erlaubt');
       return;
@@ -151,9 +133,8 @@ export function RegisterForm({ onBackToLogin, preFilledCardId }: RegisterFormPro
     setIsLoading(true);
 
     try {
-      // Sicherstellen dass Card Reader gestoppt ist
-      await stopCardReader();
-      
+      stopCardReader();
+
       const result = await authApi.register({
         vorname: formData.vorname,
         nachname: formData.nachname,
@@ -167,11 +148,10 @@ export function RegisterForm({ onBackToLogin, preFilledCardId }: RegisterFormPro
       } else {
         throw new Error('Registrierung fehlgeschlagen');
       }
-      // Nach 2 Sekunden zurück zum Login
+
       setTimeout(() => {
         onBackToLogin();
       }, 2000);
-
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unbekannter Fehler');
     } finally {
@@ -186,7 +166,7 @@ export function RegisterForm({ onBackToLogin, preFilledCardId }: RegisterFormPro
           <CheckCircle className="w-16 h-16 text-emerald-500 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Registrierung erfolgreich!</h2>
           <p className="text-gray-600 mb-4">
-            Ihr Account wurde erstellt{rfidKarte ? ' mit Karte verknüpft' : ''}. 
+            Ihr Account wurde erstellt{rfidKarte ? ' mit Karte verknüpft' : ''}.
             Sie werden zum Login weitergeleitet...
           </p>
           <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-teal-600 mx-auto"></div>
@@ -198,39 +178,31 @@ export function RegisterForm({ onBackToLogin, preFilledCardId }: RegisterFormPro
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-50 to-emerald-50">
       <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
-        {/* Header */}
         <div className="text-center mb-6">
           <div className="flex items-center justify-center mb-4">
             <UserPlus className="w-12 h-12 text-teal-600" />
           </div>
           <h1 className="text-2xl font-bold text-gray-800">Registrierung</h1>
-          <p className="text-gray-600 mt-2">
-            Erstellen Sie einen neuen Account
-          </p>
-          <p className="text-xs text-gray-500 mt-1">
-            (Automatisch als Student registriert)
-          </p>
+          <p className="text-gray-600 mt-2">Erstellen Sie einen neuen Account</p>
+          <p className="text-xs text-gray-500 mt-1">(Automatisch als Student registriert)</p>
         </div>
 
-        {/* Error */}
         {error && (
           <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md text-sm">
             {error}
           </div>
         )}
 
-        {/* Card Reader Bereich */}
         <div className="mb-6">
           {rfidKarte ? (
-            // Karte wurde erfasst
             <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <CreditCard className="w-6 h-6 text-emerald-600" />
                   <div>
                     <p className="text-sm font-medium text-emerald-800">
-                      {preFilledCardId && preFilledCardId === rfidKarte 
-                        ? 'Karte automatisch übernommen' 
+                      {preFilledCardId && preFilledCardId === rfidKarte
+                        ? 'Karte automatisch übernommen'
                         : 'Karte hinterlegt'}
                     </p>
                     <p className="text-xs text-emerald-600 font-mono">{rfidKarte}</p>
@@ -247,7 +219,6 @@ export function RegisterForm({ onBackToLogin, preFilledCardId }: RegisterFormPro
               </div>
             </div>
           ) : (
-            // Card Reader aktivieren
             <button
               type="button"
               onClick={isCardReaderActive ? stopCardReader : startCardReader}
@@ -273,7 +244,6 @@ export function RegisterForm({ onBackToLogin, preFilledCardId }: RegisterFormPro
           )}
         </div>
 
-        {/* Trennlinie */}
         <div className="relative mb-6">
           <div className="absolute inset-0 flex items-center">
             <div className="w-full border-t border-gray-300"></div>
@@ -283,13 +253,10 @@ export function RegisterForm({ onBackToLogin, preFilledCardId }: RegisterFormPro
           </div>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Vorname *
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Vorname *</label>
               <input
                 type="text"
                 value={formData.vorname}
@@ -299,9 +266,7 @@ export function RegisterForm({ onBackToLogin, preFilledCardId }: RegisterFormPro
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Nachname *
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Nachname *</label>
               <input
                 type="text"
                 value={formData.nachname}
@@ -313,9 +278,7 @@ export function RegisterForm({ onBackToLogin, preFilledCardId }: RegisterFormPro
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              E-Mail *
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">E-Mail *</label>
             <input
               type="email"
               value={formData.email}
@@ -326,28 +289,20 @@ export function RegisterForm({ onBackToLogin, preFilledCardId }: RegisterFormPro
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Passwort *
-            </label>
-            <input
-              type="password"
+            <label className="block text-sm font-medium text-gray-700 mb-1">Passwort *</label>
+            <PasswordInput
               value={formData.passwort}
-              onChange={(e) => setFormData({ ...formData, passwort: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+              onChange={(value) => setFormData({ ...formData, passwort: value })}
               disabled={isLoading}
             />
             <p className="text-xs text-gray-500 mt-1">Mindestens 4 Zeichen</p>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Passwort bestätigen *
-            </label>
-            <input
-              type="password"
+            <label className="block text-sm font-medium text-gray-700 mb-1">Passwort bestätigen *</label>
+            <PasswordInput
               value={formData.passwortConfirm}
-              onChange={(e) => setFormData({ ...formData, passwortConfirm: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+              onChange={(value) => setFormData({ ...formData, passwortConfirm: value })}
               disabled={isLoading}
             />
           </div>
@@ -371,7 +326,6 @@ export function RegisterForm({ onBackToLogin, preFilledCardId }: RegisterFormPro
           </button>
         </form>
 
-        {/* Zurück zum Login */}
         <div className="mt-6 text-center">
           <button
             onClick={onBackToLogin}

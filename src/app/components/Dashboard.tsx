@@ -41,6 +41,9 @@ export function Dashboard({ username, items, historyEntries, onUpdateItems, onBa
   const [categories, setCategories] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   
+  // Ausleihe-Filter State
+  const [showOnlyBorrowed, setShowOnlyBorrowed] = useState(false);
+  
   // Pagination State
   const ITEMS_PER_PAGE = 50;
   const [displayCount, setDisplayCount] = useState(ITEMS_PER_PAGE);
@@ -108,7 +111,10 @@ export function Dashboard({ username, items, historyEntries, onUpdateItems, onBa
     const matchesCategory = selectedCategory === '' || 
       item.categories.some(cat => cat.toLowerCase() === selectedCategory.toLowerCase());
     
-    return matchesSearch && matchesCategory;
+    // Ausleihe-Filter
+    const matchesBorrowed = !showOnlyBorrowed || item.borrowedBy !== undefined;
+    
+    return matchesSearch && matchesCategory && matchesBorrowed;
   });
   
   // Sortierte Items - vereinfachte Logik
@@ -333,41 +339,17 @@ export function Dashboard({ username, items, historyEntries, onUpdateItems, onBa
         setIsLoading(true);
         const qty = quantity || 1;
         
-        // Bei mehreren Waren: Prüfen ob genügend Tag-IDs vorhanden
-        if (qty > 1) {
-          // Tag-IDs aus dem Eingabefeld extrahieren (komma-getrennt)
-          const tagIds = itemData.tagId
-            ? itemData.tagId.split(',').map(t => t.trim()).filter(t => t.length > 0)
-            : [];
-          
-          if (tagIds.length < qty) {
-            setError(`Für ${qty} Waren werden ${qty} Tag-IDs benötigt. Bitte scannen Sie die Tags oder geben Sie sie komma-getrennt ein.`);
-            setIsLoading(false);
-            return;
-          }
-          
-          // Jede Ware mit ihrer eigenen Tag-ID erstellen
-          for (let i = 0; i < qty; i++) {
-            const newToolData: NewToolData = {
-              name: itemData.name,
-              description: itemData.description,
-              tagid: tagIds[i] || undefined,
-              cabinet_number: itemData.cabinetNumber || undefined,
-              category_ids: itemData.categoryIds || [],
-            };
-
-            const result = await toolsApi.create(newToolData);
-            if (!result.success) {
-              setError(result.error || 'Fehler beim Erstellen');
-              break;
-            }
-          }
-        } else {
-          // Einzelne Ware erstellen
+        // Tag-IDs aus dem Eingabefeld extrahieren (komma-getrennt)
+        const tagIds = itemData.tagId
+          ? itemData.tagId.split(',').map(t => t.trim()).filter(t => t.length > 0)
+          : [];
+        
+        // Ware(n) erstellen - qty mal
+        for (let i = 0; i < qty; i++) {
           const newToolData: NewToolData = {
             name: itemData.name,
             description: itemData.description,
-            tagid: itemData.tagId || undefined,
+            tagid: tagIds[i] || undefined,
             cabinet_number: itemData.cabinetNumber || undefined,
             category_ids: itemData.categoryIds || [],
           };
@@ -375,12 +357,13 @@ export function Dashboard({ username, items, historyEntries, onUpdateItems, onBa
           const result = await toolsApi.create(newToolData);
           if (!result.success) {
             setError(result.error || 'Fehler beim Erstellen');
+            break;
           }
         }
 
         // Daten neu laden
         const updatedTools = await toolsApi.getAll();
-        const mappedItems: Item[] = updatedTools.map(tool => ({
+        const mappedItems: Item[] = updatedTools.waren.map(tool => ({
           id: String(tool.id),
           name: tool.name,
           description: tool.description || '',
@@ -452,7 +435,7 @@ export function Dashboard({ username, items, historyEntries, onUpdateItems, onBa
             <h2 className="text-xl font-semibold text-teal-800">Warenübersicht</h2>
             <p className="text-sm text-gray-500">
               {filteredItems.length} {filteredItems.length === 1 ? 'Artikel' : 'Artikel'}
-              {(searchQuery || selectedCategory) && (
+              {(searchQuery || selectedCategory || showOnlyBorrowed) && (
                 <span className="text-teal-600"> (gefiltert)</span>
               )}
             </p>
@@ -513,6 +496,20 @@ export function Dashboard({ username, items, historyEntries, onUpdateItems, onBa
             </select>
             <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
           </div>
+
+          {/* Ausleihe-Filter Checkbox */}
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={showOnlyBorrowed}
+              onChange={(e) => {
+                setShowOnlyBorrowed(e.target.checked);
+                setDisplayCount(ITEMS_PER_PAGE);
+              }}
+              className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
+            />
+            <span className="text-sm text-gray-700">Nur ausgeliehene Waren</span>
+          </label>
 
           {/* Sortierung */}
           <div className="flex items-center gap-2 ml-auto">
@@ -597,14 +594,19 @@ export function Dashboard({ username, items, historyEntries, onUpdateItems, onBa
                 {paginatedItems.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
-                      {searchQuery ? (
+                      {searchQuery || showOnlyBorrowed ? (
                         <div>
-                          <p className="mb-2">Keine Waren gefunden für „{searchQuery}“</p>
+                          <p className="mb-2">
+                            {searchQuery ? `Keine Waren gefunden für „${searchQuery}“` : 'Keine ausgeliehenen Waren vorhanden'}
+                          </p>
                           <button
-                            onClick={() => setSearchQuery('')}
+                            onClick={() => {
+                              setSearchQuery('');
+                              setShowOnlyBorrowed(false);
+                            }}
                             className="text-teal-600 hover:text-teal-700 underline text-sm"
                           >
-                            Suche zurücksetzen
+                            Filter zurücksetzen
                           </button>
                         </div>
                       ) : (

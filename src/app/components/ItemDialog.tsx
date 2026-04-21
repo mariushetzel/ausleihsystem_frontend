@@ -858,7 +858,7 @@ export function ItemDialog({ item, onSave, onClose }: ItemDialogProps) {
               className="w-16 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-teal-500"
             />
             <span className="text-xs text-gray-500">
-              {quantity > 1 ? `Es werden ${quantity} Waren erstellt - jede braucht eine eigene Tag-ID` : 'Einzelne Ware erstellen'}
+              {quantity > 1 ? `Es werden ${quantity} Waren erstellt` : 'Einzelne Ware erstellen'}
             </span>
           </div>
         )}
@@ -910,7 +910,7 @@ export function ItemDialog({ item, onSave, onClose }: ItemDialogProps) {
           </div>
           <div>
             <label htmlFor="tagId" className="block text-sm mb-1">
-              Tag-ID {quantity > 1 && <span className="text-xs text-gray-500">({quantity} benötigt - komma-getrennt)</span>}
+              Tag-ID {quantity > 1 && <span className="text-xs text-gray-500">(optional - komma-getrennt)</span>}
             </label>
             <div className="flex gap-2">
               <input

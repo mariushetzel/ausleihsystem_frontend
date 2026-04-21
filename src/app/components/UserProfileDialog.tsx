@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { generateUUID } from '../utils/uuid';
 import { X, User, Save, Loader2, Lock, CreditCard, Scan, Radio } from 'lucide-react';
+import { PasswordInput } from './PasswordInput';
 import { cardReaderApi, authApi, benutzerApi } from '../api';
 
 // Storage Keys (müssen mit AntennaSettings.tsx übereinstimmen)
@@ -378,20 +379,16 @@ export function UserProfileDialog({ isOpen, onClose }: UserProfileDialogProps) {
                       <Lock className="w-4 h-4" />
                       Neues Passwort
                     </label>
-                    <input
-                      type="password"
+                    <PasswordInput
                       value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      onChange={setNewPassword}
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Passwort bestätigen</label>
-                    <input
-                      type="password"
+                    <PasswordInput
                       value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      onChange={setConfirmPassword}
                     />
                   </div>
                 </div>

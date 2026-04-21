@@ -917,8 +917,28 @@ export function BorrowView({
     setIsLoadingHistory(true);
     setShowUserHistory(true);
     try {
-      const history = await historieApi.getMyHistory();
-      setUserHistory(history);
+      const [history, activeBorrowings] = await Promise.all([
+        historieApi.getMyHistory().catch(() => []),
+        ausleihenApi.getMyBorrowings().catch(() => [])
+      ]);
+      
+      // Aktive Ausleihen in HistoryEntry-Format konvertieren
+      const activeAsHistory = activeBorrowings.map((ausleihe: any) => ({
+        id: ausleihe.id,
+        ware_name: ausleihe.ware?.name || 'Unbekannte Ware',
+        ware_kategorie: '',
+        benutzer_name: ausleihe.benutzer?.name || '',
+        ausgeliehen_am: ausleihe.ausgeliehen_am,
+        geplante_rueckgabe: ausleihe.geplante_rueckgabe,
+        tatsaechliche_rueckgabe: null,
+        verbleib_ort: ausleihe.verbleib_ort,
+        zustand: '',
+        genehmigt_von: undefined,
+      }));
+      
+      // Kombinieren: Aktive zuerst, dann abgeschlossene Historie
+      const combined = [...activeAsHistory, ...history];
+      setUserHistory(combined);
     } catch (error) {
       console.error('Fehler beim Laden der Historie:', error);
       addToast('Fehler beim Laden der Ausleihhistorie', 'error');
@@ -1541,67 +1561,69 @@ export function BorrowView({
                           </div>
                         )}
                         
-                        <input
-                          type="date"
-                          value={cartReturnDate}
-                          min={new Date().toISOString().split('T')[0]}
-                          max={maxLeihdauerTage !== null ? 
-                            new Date(Date.now() + maxLeihdauerTage * 24 * 60 * 60 * 1000).toISOString().split('T')[0] : 
-                            new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-                          }
-                          disabled={!selectedVerbleibOrtId}
-                          onChange={(e) => {
-                            const gewaehltesDatum = e.target.value;
-                            if (!gewaehltesDatum) {
-                              setCartReturnDate('');
-                              return;
+                        <div className="relative">
+                          <input
+                            type="date"
+                            value={cartReturnDate}
+                            min={new Date().toISOString().split('T')[0]}
+                            max={maxLeihdauerTage !== null ? 
+                              new Date(Date.now() + maxLeihdauerTage * 24 * 60 * 60 * 1000).toISOString().split('T')[0] : 
+                              new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
                             }
-                            
-                            // Prüfung: Verbleib ausgewählt?
-                            if (!selectedVerbleibOrtId) {
-                              addToast('Bitte wählen Sie zuerst einen Verbleib-Ort aus.', 'error');
-                              setCartReturnDate('');
-                              return;
-                            }
-                            
-                            // Validierung: Wochenende prüfen
-                            const date = new Date(gewaehltesDatum);
-                            const day = date.getDay();
-                            if (day === 0 || day === 6) {
-                              addToast('Wochenenden (Samstag und Sonntag) sind nicht als Rückgabedatum erlaubt.', 'error');
-                              setCartReturnDate('');
-                              return;
-                            }
-                            
-                            // Validierung: Nicht in der Vergangenheit
-                            const heute = new Date();
-                            heute.setHours(0, 0, 0, 0);
-                            const gewaehlt = new Date(gewaehltesDatum);
-                            if (gewaehlt < heute) {
-                              addToast('Das Datum darf nicht in der Vergangenheit liegen.', 'error');
-                              setCartReturnDate('');
-                              return;
-                            }
-                            
-                            // Validierung: Maximale Leihdauer
-                            if (maxLeihdauerTage !== null) {
-                              const maxDatum = new Date(Date.now() + maxLeihdauerTage * 24 * 60 * 60 * 1000);
-                              maxDatum.setHours(23, 59, 59, 999);
-                              if (gewaehlt > maxDatum) {
-                                addToast(`Das Datum überschreitet die maximale Leihdauer von ${maxLeihdauerTage} Tagen.`, 'error');
+                            disabled={!selectedVerbleibOrtId}
+                            onChange={(e) => {
+                              const gewaehltesDatum = e.target.value;
+                              if (!gewaehltesDatum) {
                                 setCartReturnDate('');
                                 return;
                               }
-                            }
-                            
-                            setCartReturnDate(gewaehltesDatum);
-                          }}
-                          className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 ${!selectedVerbleibOrtId ? 'bg-gray-100 cursor-not-allowed' : 'border-gray-300'}`}
-                          onInvalid={(e) => {
-                            e.preventDefault();
-                            addToast('Bitte wählen Sie ein Datum innerhalb des erlaubten Zeitraums.', 'error');
-                          }}
-                        />
+                              
+                              // Prüfung: Verbleib ausgewählt?
+                              if (!selectedVerbleibOrtId) {
+                                addToast('Bitte wählen Sie zuerst einen Verbleib-Ort aus.', 'error');
+                                setCartReturnDate('');
+                                return;
+                              }
+                              
+                              // Validierung: Wochenende prüfen
+                              const date = new Date(gewaehltesDatum);
+                              const day = date.getDay();
+                              if (day === 0 || day === 6) {
+                                addToast('Wochenenden (Samstag und Sonntag) sind nicht als Rückgabedatum erlaubt.', 'error');
+                                setCartReturnDate('');
+                                return;
+                              }
+                              
+                              // Validierung: Nicht in der Vergangenheit
+                              const heute = new Date();
+                              heute.setHours(0, 0, 0, 0);
+                              const gewaehlt = new Date(gewaehltesDatum);
+                              if (gewaehlt < heute) {
+                                addToast('Das Datum darf nicht in der Vergangenheit liegen.', 'error');
+                                setCartReturnDate('');
+                                return;
+                              }
+                              
+                              // Validierung: Maximale Leihdauer
+                              if (maxLeihdauerTage !== null) {
+                                const maxDatum = new Date(Date.now() + maxLeihdauerTage * 24 * 60 * 60 * 1000);
+                                maxDatum.setHours(23, 59, 59, 999);
+                                if (gewaehlt > maxDatum) {
+                                  addToast(`Das Datum überschreitet die maximale Leihdauer von ${maxLeihdauerTage} Tagen.`, 'error');
+                                  setCartReturnDate('');
+                                  return;
+                                }
+                              }
+                              
+                              setCartReturnDate(gewaehltesDatum);
+                            }}
+                            className={`w-full px-5 py-4 text-2xl border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 h-[64px] ${!selectedVerbleibOrtId ? 'bg-gray-100 cursor-not-allowed' : 'border-gray-300'}`}
+                            onInvalid={(e) => {
+                              e.preventDefault();
+                              addToast('Bitte wählen Sie ein Datum innerhalb des erlaubten Zeitraums.', 'error');
+                            }}
+                          />
+                        </div>
                         
                         {/* Blockierte Zeiträume anzeigen */}
                         {blockierteZeitraeume.length > 0 && (

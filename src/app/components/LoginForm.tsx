@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { generateUUID } from '../utils/uuid';
-import { LogIn, CreditCard, Loader2, AlertCircle, X } from 'lucide-react';
+import { LogIn, CreditCard, Loader2, X } from 'lucide-react';
+import { PasswordInput } from './PasswordInput';
 import { publicCardReaderApi, getApiBaseUrl } from '../api';
 
 interface LoginFormProps {
@@ -22,7 +23,7 @@ export function LoginForm({ onLogin, onRegister }: LoginFormProps) {
   const [toast, setToast] = useState<Toast | null>(null);
   
   // Refs für Card Reader
-  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const cardReaderPort = useRef<string>('/dev/ttyUSB0');
   const sessionIdRef = useRef<string>(generateUUID());
   const userIdRef = useRef<string>('login_form');
@@ -53,7 +54,11 @@ export function LoginForm({ onLogin, onRegister }: LoginFormProps) {
   // Cleanup beim Unmount
   useEffect(() => {
     return () => {
-      stopCardReader();
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+      publicCardReaderApi.stop(sessionIdRef.current, userIdRef.current).catch(() => {});
     };
   }, []);
 
@@ -307,12 +312,10 @@ export function LoginForm({ onLogin, onRegister }: LoginFormProps) {
             <label htmlFor="password" className="block text-sm mb-1 text-gray-700">
               Passwort
             </label>
-            <input
+            <PasswordInput
               id="password"
-              type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+              onChange={setPassword}
               placeholder="Passwort eingeben"
               required
               disabled={isLoading}
@@ -341,7 +344,7 @@ export function LoginForm({ onLogin, onRegister }: LoginFormProps) {
             Noch keinen Account?{' '}
             <button
               type="button"
-              onClick={onRegister}
+              onClick={() => onRegister()}
               className="text-teal-600 hover:text-teal-700 font-medium underline"
             >
               Jetzt registrieren
