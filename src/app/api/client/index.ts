@@ -465,10 +465,11 @@ export const emailDomainApi = {
 
 export const ausleihenApi = {
   // Alle Ausleihen laden (eigene oder alle je nach Rolle)
-  getAll: (params?: { status?: string; meine?: boolean }) => {
+  getAll: (params?: { status?: string; meine?: boolean; benutzer_id?: string }) => {
     const queryParams = new URLSearchParams();
     if (params?.status) queryParams.append('status', params.status);
     if (params?.meine) queryParams.append('meine', 'true');
+    if (params?.benutzer_id) queryParams.append('benutzer_id', params.benutzer_id);
     const query = queryParams.toString();
     return apiCall<Ausleihe[]>(`/ausleihen/${query ? '?' + query : ''}`);
   },

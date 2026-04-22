@@ -36,9 +36,17 @@ function formatDate(dateStr: string | undefined | null): string {
   }
 }
 
-// Pruefe ob zurueckgegeben anhand von tatsaechliche_rueckgabe
+// Pruefe ob zurueckgegeben anhand von status oder tatsaechliche_rueckgabe
 function isReturned(entry: HistoryEntry): boolean {
-  // Wenn tatsaechliche_rueckgabe existiert und nicht leer/null ist
+  // Aktive Ausleihen (aus ausleihenApi) haben status 'aktiv' oder 'rueckgabe_beantragt'
+  if (entry.status === 'aktiv' || entry.status === 'rueckgabe_beantragt') {
+    return false;
+  }
+  // Historie-Einträge (ohne status) sind immer abgeschlossen
+  if (!entry.status) {
+    return true;
+  }
+  // Fallback: Pruefe tatsaechliche_rueckgabe
   if (entry.tatsaechliche_rueckgabe) {
     const val = String(entry.tatsaechliche_rueckgabe).trim();
     return val !== '' && val !== 'null' && val !== 'undefined';

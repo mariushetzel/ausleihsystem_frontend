@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { generateUUID } from '../utils/uuid';
-import { ArrowLeft, Users, Search, Save, X, Loader2, Shield, User, AlertCircle, UserPlus, CreditCard, Lock, Unlock, Radio, Edit } from 'lucide-react';
-import { authApi, benutzerApi, publicCardReaderApi, type Benutzer } from '../api';
+import { ArrowLeft, Users, Search, Save, X, Loader2, Shield, User, AlertCircle, UserPlus, CreditCard, Lock, Unlock, Radio, Edit, History } from 'lucide-react';
+import { authApi, benutzerApi, publicCardReaderApi, historieApi, ausleihenApi, type Benutzer } from '../api';
+import { UserHistoryDialog } from './UserHistoryDialog';
+import type { HistoryEntry } from './Dashboard';
 
 interface UserManagementProps {
   username: string;
@@ -65,6 +67,14 @@ export function UserManagement({ username, userRole, onBack }: UserManagementPro
   
   // Modus für Card Reader (create oder edit)
   const [cardScanMode, setCardScanMode] = useState<'create' | 'edit'>('create');
+  
+  // User History Dialog
+  const [selectedUserHistory, setSelectedUserHistory] = useState<{
+    isOpen: boolean;
+    username: string;
+    history: HistoryEntry[];
+    isLoading: boolean;
+  }>({ isOpen: false, username: '', history: [], isLoading: false });
   
   // Card Reader States (wie im Profil)
   const [isScanning, setIsScanning] = useState(false);
@@ -163,6 +173,36 @@ export function UserManagement({ username, userRole, onBack }: UserManagementPro
   // Verfügbare Rollen für Dropdown (nur niedrigere als eigene)
   const getAvailableRoles = () => {
     return ROLE_OPTIONS.filter(role => role.level < currentUserLevel);
+  };
+
+  const handleShowUserHistory = async (user: Benutzer) => {
+    setSelectedUserHistory({ isOpen: true, username: `${user.vorname} ${user.nachname}`, history: [], isLoading: true });
+    try {
+      const [history, activeBorrowings] = await Promise.all([
+        historieApi.getAll({ benutzer_id: user.id }).catch(() => []),
+        ausleihenApi.getAll({ benutzer_id: user.id }).catch(() => [])
+      ]);
+      
+      const activeAsHistory = activeBorrowings.map((ausleihe: any) => ({
+        id: ausleihe.id,
+        ware_name: ausleihe.ware?.name || 'Unbekannte Ware',
+        ware_kategorie: '',
+        benutzer_name: ausleihe.benutzer?.name || '',
+        ausgeliehen_am: ausleihe.ausgeliehen_am,
+        geplante_rueckgabe: ausleihe.geplante_rueckgabe,
+        tatsaechliche_rueckgabe: null,
+        verbleib_ort: ausleihe.verbleib_ort,
+        zustand: '',
+        genehmigt_von: undefined,
+        status: ausleihe.status,
+      }));
+      
+      const combined = [...activeAsHistory, ...history];
+      setSelectedUserHistory(prev => ({ ...prev, history: combined, isLoading: false }));
+    } catch (error) {
+      console.error('Fehler beim Laden der Historie:', error);
+      setSelectedUserHistory(prev => ({ ...prev, isLoading: false }));
+    }
   };
 
   const handleEditClick = async (user: Benutzer) => {
@@ -625,17 +665,26 @@ export function UserManagement({ username, userRole, onBack }: UserManagementPro
                         )}
                       </td>
                       <td className="px-6 py-4 text-right">
-                        {canEditUser(user) ? (
+                        <div className="flex items-center justify-end gap-1">
                           <button
-                            onClick={() => handleEditClick(user)}
+                            onClick={() => handleShowUserHistory(user)}
                             className="p-2 text-gray-600 hover:text-teal-600 transition-colors"
-                            title="Bearbeiten"
+                            title="Ausleihhistorie"
                           >
-                            <Edit className="w-4 h-4" />
+                            <History className="w-4 h-4" />
                           </button>
-                        ) : (
-                          <span className="text-xs text-gray-400">Keine Berechtigung</span>
-                        )}
+                          {canEditUser(user) ? (
+                            <button
+                              onClick={() => handleEditClick(user)}
+                              className="p-2 text-gray-600 hover:text-teal-600 transition-colors"
+                              title="Bearbeiten"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                          ) : (
+                            <span className="text-xs text-gray-400">Keine Berechtigung</span>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -984,6 +1033,16 @@ export function UserManagement({ username, userRole, onBack }: UserManagementPro
             </div>
           </div>
         </div>
+      )}
+
+      {/* User History Dialog */}
+      {selectedUserHistory.isOpen && (
+        <UserHistoryDialog
+          username={selectedUserHistory.username}
+          history={selectedUserHistory.history}
+          isLoading={selectedUserHistory.isLoading}
+          onClose={() => setSelectedUserHistory({ isOpen: false, username: '', history: [], isLoading: false })}
+        />
       )}
     </div>
   );
