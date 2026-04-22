@@ -12,6 +12,7 @@ interface HistoryEntry {
   verbleib_ort?: string;
   zustand?: string;
   genehmigt_von?: string;
+  status?: string;
 }
 
 interface UserHistoryDialogProps {
@@ -56,6 +57,10 @@ export function UserHistoryDialog({ username, history, isLoading = false, onClos
 
   const currentBorrowings = sortedHistory.filter(h => !isReturned(h));
   const returnedBorrowings = sortedHistory.filter(h => isReturned(h));
+  
+  // Aktive Ausleihen unterteilen in "aktiv" und "rueckgabe beantragt"
+  const activeBorrowings = currentBorrowings.filter(h => h.status !== 'rueckgabe_beantragt');
+  const pendingReturnBorrowings = currentBorrowings.filter(h => h.status === 'rueckgabe_beantragt');
 
   const getWareName = (entry: HistoryEntry): string => entry.ware?.name || entry.ware_name || 'Unbekannte Ware';
 
@@ -88,15 +93,15 @@ export function UserHistoryDialog({ username, history, isLoading = false, onClos
             </div>
           ) : (
             <div className="space-y-6">
-              {/* Aktuelle Ausleihen */}
-              {currentBorrowings.length > 0 && (
+              {/* Aktuelle Ausleihen (Status: aktiv) */}
+              {activeBorrowings.length > 0 && (
                 <div>
                   <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-2">
                     <Clock className="w-4 h-4" />
-                    Aktuell ausgeliehen ({currentBorrowings.length})
+                    Aktuell ausgeliehen ({activeBorrowings.length})
                   </h3>
                   <div className="space-y-3">
-                    {currentBorrowings.map((entry) => (
+                    {activeBorrowings.map((entry) => (
                       <div key={entry.id} className="border-2 border-orange-200 bg-orange-50 rounded-lg p-4">
                         <div className="flex items-start justify-between">
                           <div className="flex items-center gap-3 min-w-0">
@@ -107,6 +112,42 @@ export function UserHistoryDialog({ username, history, isLoading = false, onClos
                             </div>
                           </div>
                           <span className="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded-full flex-shrink-0 ml-2">Aktiv</span>
+                        </div>
+                        <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                          <div>
+                            <span className="text-gray-500">Ausgeliehen:</span>
+                            <p className="text-gray-900">{formatDate(entry.ausgeliehen_am)}</p>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Rueckgabe bis:</span>
+                            <p className="text-gray-900">{formatDate(entry.geplante_rueckgabe)}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Beantragte Rueckgaben */}
+              {pendingReturnBorrowings.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-2">
+                    <Clock className="w-4 h-4" />
+                    Rueckgabe beantragt ({pendingReturnBorrowings.length})
+                  </h3>
+                  <div className="space-y-3">
+                    {pendingReturnBorrowings.map((entry) => (
+                      <div key={entry.id} className="border-2 border-amber-200 bg-amber-50 rounded-lg p-4">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <Package className="w-5 h-5 text-amber-600 flex-shrink-0" />
+                            <div className="min-w-0">
+                              <p className="font-medium text-gray-900 truncate">{getWareName(entry)}</p>
+                              {entry.ware_kategorie && <p className="text-xs text-gray-500">{entry.ware_kategorie}</p>}
+                            </div>
+                          </div>
+                          <span className="px-2 py-1 bg-amber-100 text-amber-700 text-xs rounded-full flex-shrink-0 ml-2">Beantragt</span>
                         </div>
                         <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
                           <div>

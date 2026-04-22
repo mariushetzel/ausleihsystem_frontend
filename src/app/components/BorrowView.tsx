@@ -1001,7 +1001,7 @@ export function BorrowView({
     try {
       const [history, activeBorrowings] = await Promise.all([
         historieApi.getMyHistory().catch(() => []),
-        ausleihenApi.getMyBorrowings().catch(() => [])
+        ausleihenApi.getAll({ meine: true }).catch(() => [])
       ]);
       
       // Aktive Ausleihen in HistoryEntry-Format konvertieren
@@ -1016,6 +1016,7 @@ export function BorrowView({
         verbleib_ort: ausleihe.verbleib_ort,
         zustand: '',
         genehmigt_von: undefined,
+        status: ausleihe.status,
       }));
       
       // Kombinieren: Aktive zuerst, dann abgeschlossene Historie
