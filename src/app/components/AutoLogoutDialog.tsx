@@ -100,7 +100,7 @@ export function AutoLogoutDialog({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={(e) => { if (e.target === e.currentTarget) handleContinue(); }}>
       <div className="bg-white rounded-lg shadow-2xl max-w-md w-full p-6">
         {/* Icon und Titel */}
         <div className="text-center mb-6">

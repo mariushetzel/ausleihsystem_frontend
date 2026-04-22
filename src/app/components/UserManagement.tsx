@@ -648,7 +648,7 @@ export function UserManagement({ username, userRole, onBack }: UserManagementPro
 
       {/* Bearbeiten-Modal */}
       {editingUser && (
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50" onClick={(e) => { if (e.target === e.currentTarget) setEditingUser(null); }}>
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold text-teal-700">Benutzer bearbeiten</h3>
@@ -822,7 +822,7 @@ export function UserManagement({ username, userRole, onBack }: UserManagementPro
       
       {/* Neuer Benutzer-Modal */}
       {isCreating && (
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50" onClick={(e) => { if (e.target === e.currentTarget) setIsCreating(false); }}>
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold text-teal-700">Neuen Benutzer anlegen</h3>

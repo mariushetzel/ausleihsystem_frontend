@@ -689,7 +689,7 @@ export function CategorySettings({ username, onBack, onCategoriesChanged }: Cate
 
       {/* Edit Cell Dialog */}
       {editingCell && (
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={(e) => { if (e.target === e.currentTarget) setEditingCell(null); }}>
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-2">
               Berechtigung bearbeiten
@@ -794,7 +794,7 @@ export function CategorySettings({ username, onBack, onCategoriesChanged }: Cate
 
       {/* Bulk Edit Dialog */}
       {bulkEdit && (
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={(e) => { if (e.target === e.currentTarget) setBulkEdit(null); }}>
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               {bulkEdit.type === 'row' ? 'Kategorie bearbeiten' : 'Verbleib-Ort bearbeiten'}

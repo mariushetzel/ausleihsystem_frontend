@@ -65,7 +65,7 @@ export function UserHistoryDialog({ username, history, isLoading = false, onClos
   const getWareName = (entry: HistoryEntry): string => entry.ware?.name || entry.ware_name || 'Unbekannte Ware';
 
   return (
-    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[85vh] flex flex-col">
         <div className="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
           <div>
