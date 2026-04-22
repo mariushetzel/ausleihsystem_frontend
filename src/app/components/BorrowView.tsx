@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { generateUUID } from '../utils/uuid';
 import { Scan, Search, ShoppingCart, User, Settings, Package, LogOut, History, Users, Check, X, Clock, AlertTriangle, Wifi, ChevronDown, ArrowUp, ArrowDown } from 'lucide-react';
-import { authApi, ausleihenApi, rfidAntennaApi, kategorienApi, verbleibOrtApi, schadensmeldungApi, kategorieVerbleibMatrixApi, historieApi, type VerbleibOrt, type Ware } from '../api';
+import { authApi, ausleihenApi, rfidAntennaApi, kategorienApi, verbleibOrtApi, schadensmeldungApi, kategorieVerbleibMatrixApi, historieApi, type VerbleibOrt, type Ware, TokenManager } from '../api';
 import { Item } from './ItemDialog';
 import { ItemInfoDialog } from './ItemInfoDialog';
 import { ItemHistoryDialog } from './ItemHistoryDialog';
@@ -1154,7 +1154,22 @@ export function BorrowView({
       <header className="bg-white shadow-sm border-b sticky top-0 z-40">
         <div className="w-full px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <h1 className="text-xl font-bold text-teal-700">Ausleihsystem</h1>
+            {(() => {
+              const tm = new TokenManager();
+              const token = tm.getToken();
+              const payload = token ? tm.decodePayload(token) : null;
+              const userEmail = (payload as any)?.email || '';
+              if (userEmail === 'marius.hetzel@th-koeln.de') {
+                return (
+                  <h1 className="text-xl font-bold text-teal-700 flex items-center gap-2">
+                    <span className="animate-bounce">🎉</span>
+                    Willkommen, Chef!
+                    <span className="animate-bounce" style={{ animationDelay: '0.2s' }}>✨</span>
+                  </h1>
+                );
+              }
+              return <h1 className="text-xl font-bold text-teal-700">Ausleihsystem</h1>;
+            })()}
             
             <div className="flex items-center gap-4">
               <div className="relative" ref={menuRef}>
