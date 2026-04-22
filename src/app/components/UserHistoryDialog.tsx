@@ -138,16 +138,16 @@ export function UserHistoryDialog({ username, history, isLoading = false, onClos
                   </h3>
                   <div className="space-y-3">
                     {pendingReturnBorrowings.map((entry) => (
-                      <div key={entry.id} className="border-2 border-amber-200 bg-amber-50 rounded-lg p-4">
+                      <div key={entry.id} className="border-2 border-blue-200 bg-blue-50 rounded-lg p-4">
                         <div className="flex items-start justify-between">
                           <div className="flex items-center gap-3 min-w-0">
-                            <Package className="w-5 h-5 text-amber-600 flex-shrink-0" />
+                            <Package className="w-5 h-5 text-blue-600 flex-shrink-0" />
                             <div className="min-w-0">
                               <p className="font-medium text-gray-900 truncate">{getWareName(entry)}</p>
                               {entry.ware_kategorie && <p className="text-xs text-gray-500">{entry.ware_kategorie}</p>}
                             </div>
                           </div>
-                          <span className="px-2 py-1 bg-amber-100 text-amber-700 text-xs rounded-full flex-shrink-0 ml-2">Beantragt</span>
+                          <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full flex-shrink-0 ml-2">Beantragt</span>
                         </div>
                         <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
                           <div>
