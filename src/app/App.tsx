@@ -53,7 +53,20 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string>('');
   const [token, setToken] = useState<string | null>(null);
-  const [currentView, setCurrentView] = useState<'borrow' | 'management' | 'returns' | 'antenna' | 'users' | 'categorySettings'>('borrow');
+  // Hash-basiertes Routing: initialen View aus URL-Hash lesen
+  const getInitialView = (): 'borrow' | 'management' | 'returns' | 'antenna' | 'users' | 'categorySettings' => {
+    const hash = window.location.hash.replace('#/', '').replace('#', '');
+    const validViews = ['borrow', 'management', 'returns', 'antenna', 'users', 'categorySettings'] as const;
+    return validViews.includes(hash as any) ? (hash as any) : 'borrow';
+  };
+
+  const [currentView, setCurrentView] = useState<'borrow' | 'management' | 'returns' | 'antenna' | 'users' | 'categorySettings'>(getInitialView());
+
+  // Navigation mit Hash-Update
+  const navigateToView = useCallback((view: 'borrow' | 'management' | 'returns' | 'antenna' | 'users' | 'categorySettings') => {
+    setCurrentView(view);
+    window.location.hash = view === 'borrow' ? '' : `#/${view}`;
+  }, []);
   const [authView, setAuthView] = useState<'login' | 'register'>('login');
   const [preFilledCardId, setPreFilledCardId] = useState<string>('');
   const [items, setItems] = useState<Item[]>([]);
@@ -92,8 +105,8 @@ export default function App() {
     setToken(null);
     setCurrentUser(null);
     setUserRole('');
-    setCurrentView('borrow');
-  }, []);
+    navigateToView('borrow');
+  }, [navigateToView]);
 
   // Inaktivität zurücksetzen (bei jeder Benutzeraktion)
   const resetInactivityTimer = useCallback(() => {
@@ -316,11 +329,21 @@ export default function App() {
     }
   }, [currentView]);
 
+  // Hash-Change Listener: reagiert auf Browser-Zurück/Vor-Buttons
+  useEffect(() => {
+    const handleHashChange = () => {
+      const newView = getInitialView();
+      setCurrentView(newView);
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
   const handleLogin = (username: string, authToken: string, role: string = '') => {
     setCurrentUser(username);
     setToken(authToken);
     setUserRole(role);
-    setCurrentView('borrow');
+    navigateToView('borrow');
     
     // Inaktivitäts-Timer starten wenn Student
     if (role === 'Student') {
@@ -358,7 +381,7 @@ export default function App() {
     setCurrentUser(null);
     setToken(null);
     setUserRole('');
-    setCurrentView('borrow');
+    navigateToView('borrow');
     setItems([]);
     setHistoryEntries([]);
     hasLoadedRef.current = false;
@@ -453,10 +476,10 @@ export default function App() {
             items={items}
             onUpdateItems={handleUpdateItems}
             onLogout={handleLogout}
-            onNavigateToManagement={() => setCurrentView('management')}
-            onNavigateToReturns={() => setCurrentView('returns')}
-            onNavigateToAntenna={() => setCurrentView('antenna')}
-            onNavigateToUsers={() => setCurrentView('users')}
+            onNavigateToManagement={() => navigateToView('management')}
+            onNavigateToReturns={() => navigateToView('returns')}
+            onNavigateToAntenna={() => navigateToView('antenna')}
+            onNavigateToUsers={() => navigateToView('users')}
             onEditProfile={() => setIsProfileOpen(true)}
             onShowAutoLogoutDialog={handleShowAutoLogoutDialog}
           />
@@ -472,7 +495,7 @@ export default function App() {
           items={items}
           onUpdateItems={handleUpdateItems}
           onAddHistory={handleAddHistory}
-          onBack={() => setCurrentView('borrow')}
+          onBack={() => navigateToView('borrow')}
         />
       ) : currentView === 'antenna' ? (
         userRole === 'Mitarbeiter' || userRole === 'Laborleiter' || userRole === 'Admin' ? (
@@ -480,10 +503,10 @@ export default function App() {
             username={currentUser}
             onBack={() => {
               loadData();
-              setCurrentView('borrow');
+              navigateToView('borrow');
             }}
             onCategoriesChanged={loadData}
-            onNavigateToCategorySettings={() => setCurrentView('categorySettings')}
+            onNavigateToCategorySettings={() => navigateToView('categorySettings')}
           />
         ) : (
           <LoginForm onLogin={handleLogin} />
@@ -494,7 +517,7 @@ export default function App() {
             username={currentUser}
             onBack={() => {
               loadData();
-              setCurrentView('antenna');
+              navigateToView('antenna');
             }}
             onCategoriesChanged={loadData}
           />
@@ -505,7 +528,7 @@ export default function App() {
         <UserManagement
           username={currentUser}
           userRole={userRole}
-          onBack={() => setCurrentView('borrow')}
+          onBack={() => navigateToView('borrow')}
         />
       ) : (
         <Dashboard
@@ -514,7 +537,7 @@ export default function App() {
           items={items}
           historyEntries={historyEntries}
           onUpdateItems={handleUpdateItems}
-          onBack={() => setCurrentView('borrow')}
+          onBack={() => navigateToView('borrow')}
         />
       )}
 
