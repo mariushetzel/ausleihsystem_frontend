@@ -260,17 +260,17 @@ export function LoginForm({ onLogin, onRegister }: LoginFormProps) {
             className={`w-full py-8 border-2 border-dashed rounded-lg transition-all ${
               isCardReaderActive
                 ? 'border-red-400 bg-red-50 hover:bg-red-100'
-                : 'border-gray-300 hover:border-teal-400 hover:bg-gray-50'
+                : 'border-teal-600 hover:border-teal-700 hover:bg-teal-50'
             }`}
           >
             <div className="flex flex-col items-center gap-3">
               {isLoading ? (
                 <Loader2 className="w-12 h-12 text-teal-600 animate-spin" />
               ) : (
-                <CreditCard className={`w-12 h-12 ${isCardReaderActive ? 'text-red-500' : 'text-gray-400'}`} />
+                <CreditCard className={`w-12 h-12 ${isCardReaderActive ? 'text-red-500' : 'text-teal-600'}`} />
               )}
               <div className="text-center">
-                <p className={`font-medium ${isCardReaderActive ? 'text-red-600' : 'text-gray-700'}`}>
+                <p className={`font-medium ${isCardReaderActive ? 'text-red-600' : 'text-teal-700'}`}>
                   {isLoading ? 'Anmelden...' : (isCardReaderActive ? 'Scan abbrechen' : 'Mit Mitarbeiterkarte anmelden')}
                 </p>
                 <p className="text-sm text-gray-500 mt-1">
