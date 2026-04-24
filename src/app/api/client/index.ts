@@ -866,5 +866,32 @@ export const historyApi = {
   getAll: historieApi.getAll,
 };
 
+// =============================================================================
+// STATISTIKEN API
+// =============================================================================
+
+export interface StatistikResponse {
+  zeitraum: { von: string; bis: string };
+  gesamt_ausleihen: number;
+  aktuell_ausgeliehen: number;
+  top_ausleiher: Array<{ benutzer_name: string; benutzer_email: string; anzahl: number }>;
+  top_waren: Array<{ ware_name: string; ware_kategorie: string; anzahl: number }>;
+  top_kategorien: Array<{ kategorie: string; anzahl: number }>;
+  zustand_verteilung: Record<string, number>;
+  top_beschaediger: Array<{ benutzer_name: string; anzahl_beschaedigt: number }>;
+  top_verspaetungen: Array<{ benutzer_name: string; anzahl_verspaetet: number; max_verspaetung_tage: number }>;
+  durchschnittliche_verspaetung_tage: number;
+}
+
+export const statistikApi = {
+  getAll: (params?: { von?: string; bis?: string }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.von) queryParams.append('von', params.von);
+    if (params?.bis) queryParams.append('bis', params.bis);
+    const query = queryParams.toString();
+    return apiCall<StatistikResponse>(`/statistiken/${query ? '?' + query : ''}`);
+  },
+};
+
 // Health Check
 export const ping = () => authApi.ping();

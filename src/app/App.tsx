@@ -9,6 +9,7 @@ import { ReturnView } from './components/ReturnView';
 import { AntennaSettings } from './components/AntennaSettings';
 import { CategorySettings } from './components/CategorySettings';
 import { UserManagement } from './components/UserManagement';
+import { StatisticsView } from './components/StatisticsView';
 import { Item } from './components/ItemDialog';
 import { AutoLogoutDialog } from './components/AutoLogoutDialog';
 import { warenApi, ausleihenApi, authApi, systemEinstellungenApi, type Ware, type Ausleihe } from './api';
@@ -54,16 +55,16 @@ export default function App() {
   const [userRole, setUserRole] = useState<string>('');
   const [token, setToken] = useState<string | null>(null);
   // Hash-basiertes Routing: initialen View aus URL-Hash lesen
-  const getInitialView = (): 'borrow' | 'management' | 'returns' | 'antenna' | 'users' | 'categorySettings' => {
+  const getInitialView = (): 'borrow' | 'management' | 'returns' | 'antenna' | 'users' | 'categorySettings' | 'statistics' => {
     const hash = window.location.hash.replace('#/', '').replace('#', '');
-    const validViews = ['borrow', 'management', 'returns', 'antenna', 'users', 'categorySettings'] as const;
+    const validViews = ['borrow', 'management', 'returns', 'antenna', 'users', 'categorySettings', 'statistics'] as const;
     return validViews.includes(hash as any) ? (hash as any) : 'borrow';
   };
 
-  const [currentView, setCurrentView] = useState<'borrow' | 'management' | 'returns' | 'antenna' | 'users' | 'categorySettings'>(getInitialView());
+  const [currentView, setCurrentView] = useState<'borrow' | 'management' | 'returns' | 'antenna' | 'users' | 'categorySettings' | 'statistics'>(getInitialView());
 
   // Navigation mit Hash-Update
-  const navigateToView = useCallback((view: 'borrow' | 'management' | 'returns' | 'antenna' | 'users' | 'categorySettings') => {
+  const navigateToView = useCallback((view: 'borrow' | 'management' | 'returns' | 'antenna' | 'users' | 'categorySettings' | 'statistics') => {
     setCurrentView(view);
     window.location.hash = view === 'borrow' ? '' : `#/${view}`;
   }, []);
@@ -322,11 +323,13 @@ export default function App() {
     }
   }, [currentUser]);
   
-  // Daten neu laden wenn zur Startseite (borrow) zurückgekehrt wird und Items leer sind
+  // Daten neu laden wenn zur Startseite oder Warenverwaltung zurückgekehrt wird
+  const prevViewRef = useRef(currentView);
   useEffect(() => {
-    if (currentUser && currentView === 'borrow' && items.length === 0 && hasLoadedRef.current) {
+    if (currentUser && (currentView === 'borrow' || currentView === 'management') && prevViewRef.current !== currentView && hasLoadedRef.current) {
       loadData();
     }
+    prevViewRef.current = currentView;
   }, [currentView]);
 
   // Hash-Change Listener: reagiert auf Browser-Zurück/Vor-Buttons
@@ -480,6 +483,7 @@ export default function App() {
             onNavigateToReturns={() => navigateToView('returns')}
             onNavigateToAntenna={() => navigateToView('antenna')}
             onNavigateToUsers={() => navigateToView('users')}
+            onNavigateToStatistics={() => navigateToView('statistics')}
             onEditProfile={() => setIsProfileOpen(true)}
             onShowAutoLogoutDialog={handleShowAutoLogoutDialog}
           />
@@ -528,6 +532,12 @@ export default function App() {
         <UserManagement
           username={currentUser}
           userRole={userRole}
+          onBack={() => navigateToView('borrow')}
+        />
+      ) : currentView === 'statistics' ? (
+        <StatisticsView
+          userRole={userRole}
+          username={currentUser}
           onBack={() => navigateToView('borrow')}
         />
       ) : (

@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { generateUUID } from '../utils/uuid';
-import { Scan, Search, ShoppingCart, User, Settings, Package, LogOut, History, Users, Check, X, Clock, AlertTriangle, Wifi, ChevronDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Scan, Search, ShoppingCart, User, Settings, Package, LogOut, History, Users, Check, X, Clock, AlertTriangle, Wifi, ChevronDown, ArrowUp, ArrowDown, BarChart3 } from 'lucide-react';
 import { authApi, ausleihenApi, rfidAntennaApi, kategorienApi, verbleibOrtApi, schadensmeldungApi, kategorieVerbleibMatrixApi, historieApi, type VerbleibOrt, type Ware, TokenManager } from '../api';
 import { Item } from './ItemDialog';
 import { ItemInfoDialog } from './ItemInfoDialog';
 import { ItemHistoryDialog } from './ItemHistoryDialog';
 import { SchadensmeldungDialog } from './SchadensmeldungDialog';
 import { UserHistoryDialog } from './UserHistoryDialog';
+import { DatePicker } from './DatePicker';
 import type { HistoryEntry } from './Dashboard';
 
 interface CartItem {
@@ -63,6 +64,7 @@ interface BorrowViewProps {
   onNavigateToReturns: () => void;
   onNavigateToAntenna: () => void;
   onNavigateToUsers: () => void;
+  onNavigateToStatistics: () => void;
   onEditProfile: () => void;
   onShowAutoLogoutDialog?: (title: string, message: string) => void;
 }
@@ -77,6 +79,7 @@ export function BorrowView({
   onNavigateToReturns,
   onNavigateToAntenna,
   onNavigateToUsers,
+  onNavigateToStatistics,
   onEditProfile,
   onShowAutoLogoutDialog,
 }: BorrowViewProps) {
@@ -1215,7 +1218,7 @@ export function BorrowView({
                       </>
                     )}
                     
-                    {(userRole === 'Laborleiter' || userRole === 'Admin') && (
+                    {(userRole === 'Mitarbeiter' || userRole === 'Laborleiter' || userRole === 'Admin') && (
                       <button
                         onClick={() => { setShowUserMenu(false); onNavigateToUsers(); }}
                         className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-100 flex items-center gap-2"
@@ -1225,6 +1228,16 @@ export function BorrowView({
                       </button>
                     )}
                     
+                    {(userRole === 'Mitarbeiter' || userRole === 'Laborleiter' || userRole === 'Admin') && (
+                      <button
+                        onClick={() => { setShowUserMenu(false); onNavigateToStatistics(); }}
+                        className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                      >
+                        <BarChart3 className="w-4 h-4" />
+                        Statistiken
+                      </button>
+                    )}
+
                     {(userRole === 'Mitarbeiter' || userRole === 'Laborleiter' || userRole === 'Admin') && (
                       <button
                         onClick={() => { setShowUserMenu(false); onNavigateToAntenna(); }}
@@ -1696,48 +1709,36 @@ export function BorrowView({
                         )}
                         
                         <div className="relative">
-                          <input
-                            type="date"
+                          <DatePicker
                             value={cartReturnDate}
-                            min={new Date().toISOString().split('T')[0]}
-                            max={maxLeihdauerTage !== null ? 
-                              new Date(Date.now() + maxLeihdauerTage * 24 * 60 * 60 * 1000).toISOString().split('T')[0] : 
-                              new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-                            }
-                            disabled={!selectedVerbleibOrtId}
-                            onChange={(e) => {
-                              const gewaehltesDatum = e.target.value;
-                              if (!gewaehltesDatum) {
+                            onChange={(iso) => {
+                              if (!iso) {
                                 setCartReturnDate('');
                                 return;
                               }
-                              
-                              // Prüfung: Verbleib ausgewählt?
+                              // Validierung: Verbleib ausgewählt?
                               if (!selectedVerbleibOrtId) {
                                 addToast('Bitte wählen Sie zuerst einen Verbleib-Ort aus.', 'error');
                                 setCartReturnDate('');
                                 return;
                               }
-                              
-                              // Validierung: Wochenende prüfen
-                              const date = new Date(gewaehltesDatum);
+                              // Validierung: Wochenende
+                              const date = new Date(iso);
                               const day = date.getDay();
                               if (day === 0 || day === 6) {
                                 addToast('Wochenenden (Samstag und Sonntag) sind nicht als Rückgabedatum erlaubt.', 'error');
                                 setCartReturnDate('');
                                 return;
                               }
-                              
                               // Validierung: Nicht in der Vergangenheit
                               const heute = new Date();
                               heute.setHours(0, 0, 0, 0);
-                              const gewaehlt = new Date(gewaehltesDatum);
+                              const gewaehlt = new Date(iso);
                               if (gewaehlt < heute) {
                                 addToast('Das Datum darf nicht in der Vergangenheit liegen.', 'error');
                                 setCartReturnDate('');
                                 return;
                               }
-                              
                               // Validierung: Maximale Leihdauer
                               if (maxLeihdauerTage !== null) {
                                 const maxDatum = new Date(Date.now() + maxLeihdauerTage * 24 * 60 * 60 * 1000);
@@ -1748,13 +1749,34 @@ export function BorrowView({
                                   return;
                                 }
                               }
-                              
-                              setCartReturnDate(gewaehltesDatum);
+                              setCartReturnDate(iso);
                             }}
-                            className={`w-full px-3 py-2 text-base border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 ${!selectedVerbleibOrtId ? 'bg-gray-100 cursor-not-allowed' : 'border-gray-300'}`}
-                            onInvalid={(e) => {
-                              e.preventDefault();
-                              addToast('Bitte wählen Sie ein Datum innerhalb des erlaubten Zeitraums.', 'error');
+                            disabled={!selectedVerbleibOrtId}
+                            placeholder="Datum wählen"
+                            isDateDisabled={(iso) => {
+                              const d = new Date(iso);
+                              const day = d.getDay();
+                              // Wochenenden
+                              if (day === 0 || day === 6) return true;
+                              // Vergangenheit
+                              const heute = new Date();
+                              heute.setHours(0, 0, 0, 0);
+                              if (d < heute) return true;
+                              // Maximale Leihdauer
+                              if (maxLeihdauerTage !== null) {
+                                const maxDatum = new Date(Date.now() + maxLeihdauerTage * 24 * 60 * 60 * 1000);
+                                maxDatum.setHours(23, 59, 59, 999);
+                                if (d > maxDatum) return true;
+                              }
+                              // Blockierte Zeiträume
+                              for (const z of blockierteZeitraeume) {
+                                const von = new Date(z.von);
+                                von.setHours(0, 0, 0, 0);
+                                const bis = new Date(z.bis);
+                                bis.setHours(23, 59, 59, 999);
+                                if (d >= von && d <= bis) return true;
+                              }
+                              return false;
                             }}
                           />
                         </div>
